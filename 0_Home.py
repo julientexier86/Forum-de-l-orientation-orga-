@@ -1,4 +1,6 @@
-# 🧭 Forum des Métiers — Application de Gestion et de Diffusion des Plannings
+import streamlit as st
+
+st.markdown("""# 🧭 Forum des Métiers — Application de Gestion et de Diffusion des Plannings
 
 Bienvenue dans l'application dédiée à la gestion du **Forum d'Orientation** de votre établissement.  
 Cette plateforme permet de traiter automatiquement les vœux des élèves, d'optimiser les affectations par créneaux et métiers, et de générer des plannings clairs pour chaque acteur impliqué.
@@ -73,4 +75,4 @@ Cette plateforme permet de traiter automatiquement les vœux des élèves, d'opt
 ## 🙋‍♂️ Support
 
 Pour toute question, vous pouvez contacter l’administrateur de l’application ou le porteur du projet au sein de l’établissement.  
-Cette application est hébergée localement ou sur une plateforme web selon les options de déploiement choisies.
+Cette application est hébergée localement ou sur une plateforme web selon les options de déploiement choisies.""")
