@@ -5,9 +5,9 @@ st.set_page_config(page_title="Planning Intervenants", layout="wide")
 st.title("🗂️ Planning par Intervenant")
 
 # Chargement des données mises en cache dans 2_Affectation_Eleves
-@st.cache_data
-
 def load_data():
+    if "df_affect" in st.session_state and "df_tables" in st.session_state:
+        return st.session_state["df_affect"], st.session_state["df_tables"]
     try:
         df_affectations = pd.read_csv("data/df_affectations.csv")
         df_tables = pd.read_csv("data/df_tables.csv")
