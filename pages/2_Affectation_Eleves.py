@@ -1,5 +1,4 @@
 # 📄 2_Affectation_Eleves.py
-
 import streamlit as st
 import pandas as pd
 from datetime import timedelta
