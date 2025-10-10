@@ -1,5 +1,7 @@
 # 🎓 Forum de l'Orientation – Générateur de Plannings
 
+https://forumorientation.streamlit.app
+
 Cette application Streamlit permet de gérer efficacement le **Forum des Métiers** en automatisant :
 
 - ✅ Le traitement des vœux des élèves
