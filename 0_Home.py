@@ -293,82 +293,167 @@ def gen_excel_intervenants(df_aff):
 # ==========================================
 
 st.title("🎓 Forum Orientation – Gestion des affectations")
-st.markdown("Bienvenue dans l'application de répartition automatique des élèves aux tables des professionnels.")
 
-st.header("1️⃣ Charger les fichiers")
-col1, col2, col3 = st.columns(3)
-file_voeux = col1.file_uploader("📋 Vœux élèves (Excel)", type=["xlsx"])
-file_tables = col2.file_uploader("🏷 Tables & pôles (Excel)", type=["xlsx"])
-file_groupes = col3.file_uploader("🕐 Groupes horaires (Excel)", type=["xlsx"])
+tab_app, tab_instructions = st.tabs(["🚀 Application", "📖 Instructions & Fichiers Vignes"])
 
-file_plan = st.file_uploader("🗺 Plan de salle (image PNG/JPG – optionnel)", type=["png", "jpg", "jpeg"])
+with tab_instructions:
+    st.markdown("""# 🧭 Forum des Métiers — Application de Gestion et de Diffusion des Plannings
 
-if file_voeux and file_tables and file_groupes:
-    # On charge justes les tables pour extraire les métiers absents potentiels
-    try:
-        df_t = pd.read_excel(file_tables)
-        df_t_clean = clean_cols(df_t)
-        col_t_metier = pick_col(df_t_clean, ["Metier","Métier"])
-        metiers_list = sorted(df_t_clean[col_t_metier].dropna().unique().tolist())
-        
-        st.success(f"✅ Fichiers chargés – {len(metiers_list)} métiers trouvés.")
-        
-        st.header("2️⃣ Paramètres de l'affectation")
-        absents = st.multiselect("⚠️ Métiers absents le jour J", options=metiers_list, help="Sélectionnez les métiers dont l'intervenant est absent. Ils ne seront pas affectés.")
-        melanger_eleves = st.checkbox("🎲 Mélanger aléatoirement l'ordre des élèves pour plus d'équité", value=True, help="Corrige le biais où les élèves en fin de fichier obtiennent moins de leurs vœux initiaux.")
-        
-        if st.button("🚀 Lancer la génération des plannings (ZIP)"):
-            with st.spinner("Affectation en cours et génération des documents..."):
-                try:
-                    df_voeux = pd.read_excel(file_voeux)
-                    file_tables.seek(0)
-                    df_tables = pd.read_excel(file_tables)
-                    df_groupes = pd.read_excel(file_groupes)
-                    
-                    df_aff, df_pub, _, _, _ = run_affectation(df_voeux, df_tables, df_groupes, absents, melanger_eleves)
-                    
-                    if df_aff.empty:
-                        st.error("Aucune affectation générée. Vérifiez vos fichiers.")
-                    else:
-                        # Generation des fichiers en mémoire
-                        plan_bytes = io.BytesIO(file_plan.read()) if file_plan else None
+Bienvenue dans l'application dédiée à la gestion du **Forum d'Orientation** de votre établissement.  
+Cette plateforme permet de traiter automatiquement les vœux des élèves, d'optimiser les affectations par créneaux et métiers, et de générer des plannings clairs pour chaque acteur impliqué.
+
+---
+
+## 📥 Télécharger les fichiers vierges (Modèles)
+Voici les 3 fichiers modèles (vierges) à remplir pour pouvoir utiliser l'application :
+""")
+    
+    # Création des fichiers vierges à la volée
+    import io
+    def create_excel_template(columns):
+        bio = io.BytesIO()
+        with pd.ExcelWriter(bio, engine='openpyxl') as writer:
+            pd.DataFrame(columns=columns).to_excel(writer, index=False)
+        return bio.getvalue()
+
+    col_t1, col_t2, col_t3 = st.columns(3)
+    col_t1.download_button("🧑‍🎓 01_voeux_eleves_vierge", 
+                           create_excel_template(['Nom', 'Prénom', 'Classe', 'Vœu 1', 'Vœu 2', 'Vœu 3', 'Vœu 4', 'Vœu 5', 'Vœu 6']), 
+                           "01_voeux_eleves_vierge.xlsx")
+    col_t2.download_button("🧰 02_tables_poles_vierge", 
+                           create_excel_template(['Metier', 'Nom Intervenant', 'Heure debut', 'Heure fin', 'Capacite par creneau']), 
+                           "02_tables_poles_vierge.xlsx")
+    col_t3.download_button("⏰ 03_groupes_horaires_vierge", 
+                           create_excel_template(['Groupe', 'Horaire début', 'Horaire fin']), 
+                           "03_groupes_horaires_vierge.xlsx")
+
+    st.markdown("""
+---
+
+## 🛠️ Fonctionnalités disponibles
+
+### 🟡 1. Import des données & affectations
+> Traitement des vœux des élèves et génération automatique des affectations
+
+- Téléversez trois fichiers :
+  - `01_voeux_eleves.xlsx` → contenant les **vœux (1 à 6)** de chaque élève
+  - `02_tables_poles_metiers.xlsx` → liste des **métiers / intervenants** avec horaires et capacités
+  - `03_groupes_horaires.xlsx` → les **créneaux horaires** disponibles par classe
+
+- L’application :
+  - **diagnostique** les données (cohérences, métiers inconnus, classes manquantes…)
+  - **génère les affectations** selon les vœux et les créneaux disponibles
+  - propose un export ZIP contenant tous les plannings
+
+---
+
+### 🟢 2. Planning Élèves
+> Génère automatiquement des plannings individuels élèves
+
+- Deux documents générés :
+  - `planning_publipostage.xlsx` → prêt pour l’envoi aux familles
+  - `planning_eleves.docx` → plannings prêts à imprimer avec zones de découpe
+- Chaque élève a jusqu’à **4 passages** de 15 minutes dans des pôles métiers différents.
+
+---
+
+### 🔵 3. Planning Intervenants
+> Permet à chaque professionnel de visualiser les élèves qu’il rencontrera par créneau
+
+- Génération :
+  - Un fichier Excel : `planning_par_intervenant.xlsx` (1 onglet/intervenant)
+  - Un document Word : `planning_intervenants.docx` (1 page/intervenant)
+- Les créneaux sont regroupés **visuellement** pour une lecture rapide.
+
+---
+
+## 🧩 Informations techniques
+
+- Créneaux découpés **par tranches de 15 minutes**
+- Gestion jusqu’à **6 vœux par élève**
+- Chaque élève peut être affecté à **maximum 4 pôles**
+- Attribution prioritaire aux **vœux les plus élevés** disponibles
+- L'ordre des élèves est mélangé de manière aléatoire pour **garantir l'équité** (option désactivable)
+- Gestion fine des **capacités et disponibilités horaires** de chaque intervenant
+""")
+
+with tab_app:
+    st.markdown("Bienvenue dans l'application de répartition automatique des élèves aux tables des professionnels.")
+
+    st.header("1️⃣ Charger les fichiers")
+    col1, col2, col3 = st.columns(3)
+    file_voeux = col1.file_uploader("📋 Vœux élèves (Excel)", type=["xlsx"])
+    file_tables = col2.file_uploader("🏷 Tables & pôles (Excel)", type=["xlsx"])
+    file_groupes = col3.file_uploader("🕐 Groupes horaires (Excel)", type=["xlsx"])
+
+    file_plan = st.file_uploader("🗺 Plan de salle (image PNG/JPG – optionnel)", type=["png", "jpg", "jpeg"])
+
+    if file_voeux and file_tables and file_groupes:
+        # On charge justes les tables pour extraire les métiers absents potentiels
+        try:
+            df_t = pd.read_excel(file_tables)
+            df_t_clean = clean_cols(df_t)
+            col_t_metier = pick_col(df_t_clean, ["Metier","Métier"])
+            metiers_list = sorted(df_t_clean[col_t_metier].dropna().unique().tolist())
+            
+            st.success(f"✅ Fichiers chargés – {len(metiers_list)} métiers trouvés.")
+            
+            st.header("2️⃣ Paramètres de l'affectation")
+            absents = st.multiselect("⚠️ Métiers absents le jour J", options=metiers_list, help="Sélectionnez les métiers dont l'intervenant est absent. Ils ne seront pas affectés.")
+            melanger_eleves = st.checkbox("🎲 Mélanger aléatoirement l'ordre des élèves pour plus d'équité", value=True, help="Corrige le biais où les élèves en fin de fichier obtiennent moins de leurs vœux initiaux.")
+            
+            if st.button("🚀 Lancer la génération des plannings (ZIP)"):
+                with st.spinner("Affectation en cours et génération des documents..."):
+                    try:
+                        df_voeux = pd.read_excel(file_voeux)
+                        file_tables.seek(0)
+                        df_tables = pd.read_excel(file_tables)
+                        df_groupes = pd.read_excel(file_groupes)
                         
-                        xl_pub = gen_excel_publipostage(df_pub)
-                        xl_int = gen_excel_intervenants(df_aff)
-                        wd_eleves = gen_word_eleves(df_pub, plan_bytes)
-                        wd_int = gen_word_intervenants(df_aff)
+                        df_aff, df_pub, _, _, _ = run_affectation(df_voeux, df_tables, df_groupes, absents, melanger_eleves)
                         
-                        # Creation du ZIP en memoire
-                        zip_buffer = io.BytesIO()
-                        with zipfile.ZipFile(zip_buffer, "w") as z:
-                            z.writestr("planning_publipostage.xlsx", xl_pub)
-                            z.writestr("planning_par_intervenant.xlsx", xl_int)
-                            z.writestr("planning_eleves.docx", wd_eleves)
-                            z.writestr("planning_intervenants.docx", wd_int)
-                        
-                        # Stats
-                        nb_eleves = len(df_pub)
-                        nb_aff    = len(df_aff)
-                        nb_auto   = int(df_aff["Auto"].sum()) if "Auto" in df_aff.columns else 0
-                        nb_voeux  = nb_aff - nb_auto
-                        
-                        st.success("✅ Plannings générés avec succès !")
-                        st.info(f"📊 **Statistiques :**\n- **{nb_eleves}** élèves traités\n- **{nb_voeux}** passages sur vœux\n- **{nb_auto}** passages suggérés automatiquement")
-                        
-                        st.download_button(
-                            label="📦 Télécharger le ZIP (tous les documents)",
-                            data=zip_buffer.getvalue(),
-                            file_name="forum_orientation_exports.zip",
-                            mime="application/zip",
-                            type="primary"
-                        )
-                except Exception as e:
-                    import traceback
-                    st.error(f"Une erreur est survenue durant la génération :\n{e}")
-                    with st.expander("Voir les détails techniques (Traceback)"):
-                        st.code(traceback.format_exc())
-                        
-    except Exception as e:
-        st.error(f"Erreur lors de la lecture des en-têtes du fichier Excel Tables : {e}")
-else:
-    st.info("Veuillez charger les 3 fichiers Excel (Vœux, Tables, Groupes) pour démarrer.")
+                        if df_aff.empty:
+                            st.error("Aucune affectation générée. Vérifiez vos fichiers.")
+                        else:
+                            # Generation des fichiers en mémoire
+                            plan_bytes = io.BytesIO(file_plan.read()) if file_plan else None
+                            
+                            xl_pub = gen_excel_publipostage(df_pub)
+                            xl_int = gen_excel_intervenants(df_aff)
+                            wd_eleves = gen_word_eleves(df_pub, plan_bytes)
+                            wd_int = gen_word_intervenants(df_aff)
+                            
+                            # Creation du ZIP en memoire
+                            zip_buffer = io.BytesIO()
+                            with zipfile.ZipFile(zip_buffer, "w") as z:
+                                z.writestr("planning_publipostage.xlsx", xl_pub)
+                                z.writestr("planning_par_intervenant.xlsx", xl_int)
+                                z.writestr("planning_eleves.docx", wd_eleves)
+                                z.writestr("planning_intervenants.docx", wd_int)
+                            
+                            # Stats
+                            nb_eleves = len(df_pub)
+                            nb_aff    = len(df_aff)
+                            nb_auto   = int(df_aff["Auto"].sum()) if "Auto" in df_aff.columns else 0
+                            nb_voeux  = nb_aff - nb_auto
+                            
+                            st.success("✅ Plannings générés avec succès !")
+                            st.info(f"📊 **Statistiques :**\n- **{nb_eleves}** élèves traités\n- **{nb_voeux}** passages sur vœux\n- **{nb_auto}** passages suggérés automatiquement")
+                            
+                            st.download_button(
+                                label="📦 Télécharger le ZIP (tous les documents)",
+                                data=zip_buffer.getvalue(),
+                                file_name="forum_orientation_exports.zip",
+                                mime="application/zip",
+                                type="primary"
+                            )
+                    except Exception as e:
+                        import traceback
+                        st.error(f"Une erreur est survenue durant la génération :\n{e}")
+                        with st.expander("Voir les détails techniques (Traceback)"):
+                            st.code(traceback.format_exc())
+                            
+        except Exception as e:
+            st.error(f"Erreur lors de la lecture des en-têtes du fichier Excel Tables : {e}")
+    else:
+        st.info("Veuillez charger les 3 fichiers Excel (Vœux, Tables, Groupes) pour démarrer.")
